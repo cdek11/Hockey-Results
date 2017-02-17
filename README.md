@@ -1,1 +1,11 @@
 # Hockey-Results
+
+Introduction
+
+As a sports fan, it's very useful to be able to easily obtain the latest scores/schedules of your favorite sports team. This project aims at providing an intuitive and convenient way to get an overview of the information about any team in the National Hockey League (NHL), with a highly interactive user interface.
+
+NHL is a professional ice hockey league currently composed of 30 member clubs. Of the 30 clubs currently playing, 23 are in the United States and 7 are in Canada. The National Hockey League season is divided into a regular season (from early October through early to mid April) and a postseason (the Stanley Cup playoffs). In the regular season, each team plays 82 games: 41 games each of home and road. (Source).
+
+Ultimately, our application allows a user to select a NHL team of choice through either the map or dropdown interface, and a table on the left is updated with that specific team's schedule for the season in addition to their results of any games they've already played. A graph on the right offers a visualization of the number of shots attempted and the number of goals scored for both the selected team and the opponent throughout the season. This allows the user to compare basic stats for the team across the whole season.
+
+In order to accomplish the goals of our application, we had to scrape data from multiple websites. First, we needed to identify the specific URL associated with each hockey team's page on the ESPN website. Then, once a user selected their team of interest, we needed to go to the URL obtained from the first step and scrape the results from the page. This information was used in constructing the table and graph. Lastly, we wanted to add in a few features to improve the app display, including a map and the team's logo. To create the map, we needed to scrape a wikipedia page that contained the full list of NHL teams and their respective cities/states. To display the logo, we needed to scrape the wikipedia page for a specific team and obtain the logo.
