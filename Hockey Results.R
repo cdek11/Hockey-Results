@@ -15,6 +15,8 @@ library(qdap)
 library(date)
 library(DT)
 library(RColorBrewer)
+library(ggplot2)
+library(scales)
 
 # get websites that have the schedule information
 espn_url = "http://www.espn.com"
