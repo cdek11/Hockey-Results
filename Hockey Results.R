@@ -23,24 +23,25 @@ espn_url = "http://www.espn.com"
 espn_site <- read_html(paste0(espn_url, "/nhl/teams"))
 
 hockey_schedule_urls <- espn_site %>% html_nodes("a:nth-child(2)") %>% html_attr("href")
-hockey_schedule_urls <- hockey_schedule_urls[seq(3, length(hockey_schedule_urls), 3)] %>%
-  paste0(espn_url, .)
+hockey_schedule_urls <- hockey_schedule_urls %>% paste0(espn_url, .)
+#### [seq(3, length(hockey_schedule_urls), 3)]
 
 team_names <- espn_site %>% html_nodes("a:nth-child(2) , h5") %>% html_text()
-team_names <- team_names[seq(1, length(team_names), 4)]
+team_names <- team_names[seq(1, length(team_names), 2)]
 
 # merges team names and schedule into data frame
 nhl_schedule_urls <- as.data.frame(cbind(team_names, hockey_schedule_urls))
 
-# get all nhl teams, their respective cities, and the latitude and longitude values of cities
+# get all nhl teams, their respective cities
 wiki_url <- read_html("https://en.wikipedia.org/wiki/National_Hockey_League")
 wiki_team_list <- wiki_url %>%
-  html_nodes("h4+ .wikitable td:nth-child(2) , th~ td:nth-child(3) , h4+ .wikitable td:nth-child(1)") %>%
+  html_nodes(".navbox td") %>%
   html_text()
+###h4+ .wikitable td:nth-child(2) , th~ td:nth-child(3) , h4+ .wikitable td:nth-child(1)
 
 # create dataframe with team locations. remove vegas golden knights since they are a new team without data.
-teams <- wiki_team_list[seq(1, length(wiki_team_list), 2)]
-cities <- as.character(wiki_team_list[seq(2, length(wiki_team_list), 2)])
+teams <- wiki_team_list[which(wiki_team_list %in% team_names)]
+cities <- wiki_team_list[which(wiki_team_list %in% team_names)+1]
 team_locations <- as.data.frame(cbind(teams,cities)) %>% 
   filter(teams != "Vegas Golden Knights")
 
@@ -55,8 +56,8 @@ logo_urls <- paste0("https:", logo_urls)
 team_logos <- data.frame(teams = team_locations$teams, urls = as.character(logo_urls))
 
 # four pieces of information in dataset: hockey team, city/state, longitude and latitude
-team_locations <- cbind(team_locations,geocode(as.character(team_locations$cities)))
-
+team_locations <- cbind(team_locations,geocode(as.character(team_locations$cities))) %>%
+  filter(is.na(lon) == FALSE)
 
 #### function to scrape team data
 scrape_team_data <- function(team_url) {
@@ -70,10 +71,10 @@ scrape_team_data <- function(team_url) {
   # get plot data, which includes game date, and num shots scored and attempted for team and opponent
   # need to filter to observations that have already been played
   plot_team_data <- as.data.frame(team_data_tmp) %>%
-    filter(row_number() > 1 & Opponent != "2017 Preseason Schedule" & Opponent != "OPPONENT" & !Date %in% c("SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER", "JANUARY", "FEBRUARY", "MARCH")) %>%
+    filter(row_number() > 1 & Opponent != "2018 Preseason Schedule" & Opponent != "OPPONENT" & !Date %in% c("SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER", "JANUARY", "FEBRUARY", "MARCH")) %>%
     mutate(new_date = ifelse(substr(gsub(".*, ", "", Date), 1, 3) %in% c("Sep", "Oct", "Nov", "Dec"),            
-                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2016"), format = "%b %d %Y")),
-                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2017"), format = "%b %d %Y"))),
+                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2017"), format = "%b %d %Y")),
+                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2018"), format = "%b %d %Y"))),
            `Game Date` = as.factor(as.POSIXct(new_date, origin = "1970-01-01"))) %>%
     filter(as.character(`Game Date`) < (Sys.Date()) & `SF-SA` != "" & Result != "Postponed") %>%
     mutate(game_result = substr(Result, 1, 1),
@@ -86,21 +87,22 @@ scrape_team_data <- function(team_url) {
            num_shots = as.numeric(gsub("-.*$", "", `SF-SA`)),
            other_team_shots = as.numeric(gsub(".*-", "", `SF-SA`))) %>%
     arrange(`Game Date`) %>%
-    select(c(`Game Date`, num_goals, other_team_goals, num_shots, other_team_shots))
+    select(c(`Game Date`, num_goals, other_team_goals, num_shots, other_team_shots)) %>%
+    filter(as.Date(`Game Date`) >= "2017-10-04" ) # 2017-18 season started oct 4 
   
   # get table data, which only includes game date, opponent, and result of the game 
   table_team_data <- as.data.frame(team_data_tmp) %>%
-    filter(row_number() > 1 & Opponent != "2017 Preseason Schedule" & Opponent != "OPPONENT" & !Date %in% c("SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER", "JANUARY", "FEBRUARY", "MARCH")) %>%
+    filter(row_number() > 1 & Opponent != "2018 Preseason Schedule" & Opponent != "OPPONENT" & !Date %in% c("SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER", "JANUARY", "FEBRUARY", "MARCH")) %>%
     mutate(new_date = ifelse(substr(gsub(".*, ", "", Date), 1, 3) %in% c("Sep", "Oct", "Nov", "Dec"),            
-                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2016"), format = "%b %d %Y")),
-                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2017"), format = "%b %d %Y"))),
+                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2017"), format = "%b %d %Y")),
+                             as.POSIXct(strptime(paste0(gsub(".*, ", "", Date), " 2018"), format = "%b %d %Y"))),
            `Game Date` = as.factor(as.POSIXct(new_date, origin = "1970-01-01")),
            Opponent = gsub("vs", "", gsub("@", "", Opponent))) %>%
-    select(c(`Game Date`, Opponent, Result))
+    select(c(`Game Date`, Opponent, Result)) %>%
+    filter(as.Date(`Game Date`) >= "2017-10-04" ) # 2017-18 season started oct 4 
   
   return(list(plot_team_data, table_team_data))
 } #end function to scrape team data
-
 
 shinyApp(
   ui = fluidPage(
@@ -182,18 +184,15 @@ shinyApp(
     
     # plot number of shots scored and number of shots taken across games
     output$distPlot = renderPlot( {
-      color_values <- c("deepskyblue", "red", "dodgerblue4", "firebrick4")
-      label_values <- c(paste0(v$team, " Goals"), "Opponent Goals", paste0(v$team, " Shots Attempted"), "Opponent Shots Attempted")
+      color_values <- c("darkslateblue", "firebrick4", "lightsteelblue3", "salmon")
+      label_values <- c(paste0(v$team, " Goals"), "Opponent Goals", 
+                        paste0(v$team, " Shots Attempted"), "Opponent Shots Attempted")
       
       ggplot(get_team_data()[[1]], aes(as.Date(get_team_data()[[1]]$`Game Date`, "%Y-%m-%d"), group = 1)) + 
-        geom_line(aes(y = num_goals, color = "deepskyblue"), size = .75) + 
-        geom_point(aes(y = num_goals, color = "deepskyblue"), size = .5) +
-        geom_line(aes(y = other_team_goals, color = "deepyellow"), size = .75) + 
-        geom_point(aes(y = other_team_goals, color = "deepyellow"), size = .5) +
-        geom_line(aes(y = num_shots, color = "dodgerblue4"), size = .75) + 
-        geom_point(aes(y = num_shots, color = "dodgerblue4"), size = .5) +
-        geom_line(aes(y = other_team_shots, color = "firebrick4"), size = .75) + 
-        geom_point(aes(y = other_team_shots, color = "firebrick4"), size = .5) +
+        geom_line(aes(y = num_goals, color = "darkslateblue"), size = .75) + 
+        geom_line(aes(y = other_team_goals, color = "firebrick4"), size = .75) + 
+        geom_line(aes(y = num_shots, color = "lightsteelblue3"), size = .75) + 
+        geom_line(aes(y = other_team_shots, color = "salmon"), size = .75) + 
         labs(x = "Date", y = "Number of Shots", title = "Successful and Unsuccessful Shots on Goal") +
         theme_bw() +
         theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
